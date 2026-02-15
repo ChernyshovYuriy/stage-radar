@@ -37,6 +37,9 @@ from fastapi.responses import FileResponse
 # ── Import your analyzer modules (must be in same directory) ──────────────────
 from market_stage_analyzer import MarketAnalyzer
 
+ROOT_DIR = Path(__file__).resolve().parent.parent   # repo root
+DASHBOARD_PATH = ROOT_DIR / "dashboard.html"
+
 # ──────────────────────────────────────────────────────────────────────────────
 app = FastAPI(title="Market Stage Dashboard API")
 
@@ -212,7 +215,7 @@ def _startup():
 
 @app.get("/", include_in_schema=False)
 def serve_dashboard():
-    path = Path("../dashboard.html")
+    path = Path(DASHBOARD_PATH)
     if not path.exists():
         raise HTTPException(404, "dashboard.html not found in working directory")
     return FileResponse(path)
