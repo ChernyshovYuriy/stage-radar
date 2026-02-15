@@ -27,18 +27,18 @@ from typing import Any, Dict, Optional, List
 
 import numpy as np
 import pandas as pd
-from fastapi.encoders import jsonable_encoder
-
 import uvicorn
 from fastapi import FastAPI, HTTPException
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 # ── Import your analyzer modules (must be in same directory) ──────────────────
 from market_stage_analyzer import MarketAnalyzer
 
-ROOT_DIR = Path(__file__).resolve().parent.parent   # repo root
+ROOT_DIR = Path(__file__).resolve().parent.parent  # repo root
 DASHBOARD_PATH = ROOT_DIR / "dashboard.html"
+CAN_TICKERS_PATH = ROOT_DIR / "res/can_tickers"
 
 # ──────────────────────────────────────────────────────────────────────────────
 app = FastAPI(title="Market Stage Dashboard API")
@@ -148,6 +148,7 @@ def _save_cache(data: dict):
     payload["_cached_at"] = time.time()
     CACHE_FILE.write_text(json.dumps(payload, indent=2, default=_json_default))
 
+
 def _load_cache() -> Optional[dict]:
     if not CACHE_FILE.exists():
         return None
@@ -238,12 +239,12 @@ def trigger_analysis():
         if _state["status"] == "running":
             return {"message": "Analysis already running"}
 
-    with open("../res/can_tickers", "r") as f:
+    with open(CAN_TICKERS_PATH, "r") as f:
         tickers: List[str] = [line.strip() for line in f if line.strip()]
 
     t = threading.Thread(
         target=_run_analysis,
-        args=(tickers, ),
+        args=(tickers,),
         daemon=True,
     )
     t.start()
