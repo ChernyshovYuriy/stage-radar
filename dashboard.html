@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Market Stage Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:        #070B14;
+  --surface:   #0C1220;
+  --surface2:  #111827;
+  --border:    #1A2540;
+  --border2:   #243050;
+  --text:      #CBD5E1;
+  --text-dim:  #4A5568;
+  --text-mid:  #8899B4;
+  --accent:    #00CFFD;
+  --accent2:   #0088FF;
+  --s1:        #F5A623;   /* Stage 1 Basing   – amber   */
+  --s2:        #00E676;   /* Stage 2 Advancing – green   */
+  --s3:        #FF6D00;   /* Stage 3 Topping   – orange  */
+  --s4:        #FF3D57;   /* Stage 4 Declining – red     */
+  --up:        #00E676;
+  --down:      #FF3D57;
+  --neutral:   #4A5568;
+  --font-head: 'Chakra Petch', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-body: 'Barlow', sans-serif;
+}
+
+html { font-size: 14px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Subtle grid texture */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,207,253,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,207,253,0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Layout ───────────────────────────────────────────────────────────────── */
+.app { position: relative; z-index: 1; max-width: 1600px; margin: 0 auto; padding: 0 24px 48px; }
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 24px 0 20px;
+  border-bottom: 1px solid var(--border);
+  gap: 16px; flex-wrap: wrap;
+}
+.header-left { display: flex; align-items: center; gap: 20px; }
+.logo {
+  font-family: var(--font-head);
+  font-size: 1.4rem; font-weight: 700;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--accent);
+}
+.logo span { color: var(--text-mid); font-weight: 300; }
+.market-badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 2px;
+  border: 1px solid currentColor;
+}
+.badge-bullish { color: var(--up); background: rgba(0,230,118,0.08); }
+.badge-bearish  { color: var(--down); background: rgba(255,61,87,0.08); }
+.badge-mixed    { color: var(--text-mid); background: rgba(74,85,104,0.15); }
+
+.header-right { display: flex; align-items: center; gap: 12px; }
+.timestamp {
+  font-family: var(--font-mono); font-size: 0.68rem;
+  color: var(--text-dim); letter-spacing: 0.05em;
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
+.btn {
+  font-family: var(--font-head);
+  font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 8px 20px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.2s;
+  clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+}
+.btn:hover { background: rgba(0,207,253,0.12); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-run { background: rgba(0,207,253,0.08); }
+
+/* ── Loading state ────────────────────────────────────────────────────────── */
+#loading-screen {
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  min-height: 60vh; gap: 24px;
+}
+.spinner-ring {
+  width: 64px; height: 64px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text {
+  font-family: var(--font-mono);
+  font-size: 0.75rem; color: var(--text-mid);
+  letter-spacing: 0.1em;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
+
+/* ── Idle screen ──────────────────────────────────────────────────────────── */
+#idle-screen {
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  min-height: 60vh; gap: 20px; text-align: center;
+}
+.idle-title {
+  font-family: var(--font-head);
+  font-size: 2rem; font-weight: 700;
+  color: var(--text); letter-spacing: 0.05em;
+}
+.idle-sub { color: var(--text-mid); font-size: 0.9rem; max-width: 400px; line-height: 1.6; }
+.btn-big {
+  font-size: 0.85rem; padding: 14px 40px;
+  margin-top: 8px;
+}
+
+/* ── Summary cards ────────────────────────────────────────────────────────── */
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 24px 0 8px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 16px 20px;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  animation: fadeUp 0.4s ease both;
+}
+.stat-card:nth-child(1) { animation-delay: 0.05s; }
+.stat-card:nth-child(2) { animation-delay: 0.10s; }
+.stat-card:nth-child(3) { animation-delay: 0.15s; }
+.stat-card:nth-child(4) { animation-delay: 0.20s; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.stat-value {
+  font-family: var(--font-head);
+  font-size: 2rem; font-weight: 700; line-height: 1;
+}
+.stat-sub { font-size: 0.72rem; color: var(--text-mid); margin-top: 4px; }
+.val-green { color: var(--up); }
+.val-red   { color: var(--down); }
+.val-accent { color: var(--accent); }
+
+/* ── Controls bar ─────────────────────────────────────────────────────────── */
+.controls {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 0 12px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.controls-label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem; color: var(--text-dim);
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+.filter-btn {
+  font-family: var(--font-mono);
+  font-size: 0.65rem; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 5px 14px;
+  border: 1px solid var(--border2);
+  background: transparent; color: var(--text-mid);
+  cursor: pointer; transition: all 0.15s;
+}
+.filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+.filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,207,253,0.08); }
+.search-box {
+  margin-left: auto;
+  background: var(--surface); border: 1px solid var(--border2);
+  color: var(--text); font-family: var(--font-mono); font-size: 0.72rem;
+  padding: 5px 14px; outline: none;
+  width: 180px;
+  transition: border-color 0.2s;
+}
+.search-box:focus { border-color: var(--accent); }
+.search-box::placeholder { color: var(--text-dim); }
+
+/* ── Sector grid ──────────────────────────────────────────────────────────── */
+.sector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 16px;
+  padding: 20px 0;
+}
+
+/* ── Sector card ──────────────────────────────────────────────────────────── */
+.sector-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  animation: fadeUp 0.5s ease both;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.sector-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+
+.card-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+.sector-name {
+  font-family: var(--font-head);
+  font-size: 0.85rem; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.stage-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 0.62rem;
+  padding: 3px 9px;
+  border: 1px solid currentColor;
+  letter-spacing: 0.08em;
+}
+.stage-1 { color: var(--s1); }
+.stage-2 { color: var(--s2); }
+.stage-3 { color: var(--s3); }
+.stage-4 { color: var(--s4); }
+.stage-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+  animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.card-right { text-align: right; }
+.trend-indicator {
+  font-family: var(--font-head);
+  font-size: 0.68rem; font-weight: 700;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.trend-up   { color: var(--up); }
+.trend-down { color: var(--down); }
+.trend-neutral { color: var(--neutral); }
+.rsi-val {
+  font-family: var(--font-mono); font-size: 0.68rem;
+  color: var(--text-mid);
+}
+.rsi-val span { color: var(--text); font-weight: 500; }
+
+/* ── Metrics body ─────────────────────────────────────────────────────────── */
+.card-body { padding: 14px 18px; }
+
+.perf-row {
+  display: flex; gap: 0;
+  margin-bottom: 12px;
+}
+.perf-item {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  margin-right: -1px;
+}
+.perf-item:first-child { border-left: 2px solid var(--border2); }
+.perf-label {
+  font-family: var(--font-mono); font-size: 0.58rem;
+  color: var(--text-dim); letter-spacing: 0.1em;
+  margin-bottom: 3px;
+}
+.perf-value {
+  font-family: var(--font-mono); font-size: 0.82rem; font-weight: 500;
+}
+
+/* Stage distribution bar */
+.dist-bar-wrap {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 12px;
+}
+.dist-bar-track {
+  flex: 1; height: 4px;
+  background: var(--border);
+  position: relative; overflow: hidden;
+}
+.dist-bar-fill {
+  height: 100%; position: absolute; left: 0;
+  background: linear-gradient(90deg, var(--s2), var(--s4));
+  transition: width 0.8s ease;
+}
+.dist-bar-fill.all-up   { background: var(--s2); }
+.dist-bar-fill.all-down { background: var(--s4); }
+.dist-label {
+  font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* Ticker count + expand */
+.card-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+.ticker-count {
+  font-family: var(--font-mono); font-size: 0.6rem;
+  color: var(--text-dim); letter-spacing: 0.08em;
+}
+.expand-btn {
+  font-family: var(--font-mono); font-size: 0.6rem;
+  color: var(--accent); cursor: pointer; background: none; border: none;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 2px 0;
+  transition: opacity 0.2s;
+}
+.expand-btn:hover { opacity: 0.7; }
+
+/* Ticker table */
+.ticker-table-wrap {
+  max-height: 0; overflow: hidden;
+  transition: max-height 0.35s ease;
+  border-top: 0px solid var(--border);
+}
+.ticker-table-wrap.open {
+  max-height: 420px;
+  border-top: 1px solid var(--border);
+  overflow-y: auto;
+}
+.ticker-table-wrap::-webkit-scrollbar { width: 4px; }
+.ticker-table-wrap::-webkit-scrollbar-thumb { background: var(--border2); }
+
+table.tickers { width: 100%; border-collapse: collapse; }
+table.tickers th {
+  font-family: var(--font-mono);
+  font-size: 0.57rem; font-weight: 400;
+  color: var(--text-dim); letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 8px 10px;
+  text-align: right;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+table.tickers th:first-child { text-align: left; }
+table.tickers td {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 6px 10px;
+  text-align: right;
+  border-bottom: 1px solid rgba(26,37,64,0.5);
+  color: var(--text);
+}
+table.tickers td:first-child { text-align: left; }
+table.tickers tr:hover td { background: rgba(0,207,253,0.04); }
+
+.sym { color: var(--accent); font-weight: 500; }
+.stage-pip {
+  display: inline-block;
+  width: 7px; height: 7px; border-radius: 50%;
+  vertical-align: middle; margin-right: 4px;
+}
+
+/* RSI mini bar */
+.rsi-bar-wrap { display: inline-flex; align-items: center; gap: 5px; }
+.rsi-bar {
+  width: 36px; height: 3px;
+  background: var(--border); position: relative; overflow: hidden;
+}
+.rsi-bar-fill { height: 100%; position: absolute; left: 0; }
+
+/* ── Error banner ─────────────────────────────────────────────────────────── */
+.error-banner {
+  background: rgba(255,61,87,0.1);
+  border: 1px solid rgba(255,61,87,0.3);
+  color: #FF8896;
+  font-family: var(--font-mono); font-size: 0.75rem;
+  padding: 12px 18px; margin: 16px 0;
+  display: none;
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .summary-row { grid-template-columns: repeat(2, 1fr); }
+  .sector-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 500px) {
+  .summary-row { grid-template-columns: 1fr 1fr; }
+  .logo { font-size: 1.1rem; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Header ───────────────────────────────────────────────────────────── -->
+  <header>
+    <div class="header-left">
+      <div class="logo">Stage<span>Radar</span></div>
+      <div id="market-badge" class="market-badge badge-mixed" style="display:none"></div>
+    </div>
+    <div class="header-right">
+      <div id="timestamp" class="timestamp"></div>
+      <button class="btn btn-run" id="btn-analyze" onclick="triggerAnalysis()">
+        ↻ Refresh Data
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Error ────────────────────────────────────────────────────────────── -->
+  <div class="error-banner" id="error-banner"></div>
+
+  <!-- ── Idle ─────────────────────────────────────────────────────────────── -->
+  <div id="idle-screen">
+    <div class="idle-title">Market Stage Analyzer</div>
+    <div class="idle-sub">
+      Fetches live price data via yfinance and classifies each sector
+      into Weinstein stages 1–4. Takes ~60 seconds for 200 tickers.
+    </div>
+    <button class="btn btn-big" onclick="triggerAnalysis()">▶ Initialize Analysis</button>
+  </div>
+
+  <!-- ── Loading ──────────────────────────────────────────────────────────── -->
+  <div id="loading-screen">
+    <div class="spinner-ring"></div>
+    <div class="loading-text" id="loading-text">Connecting to markets…</div>
+  </div>
+
+  <!-- ── Dashboard ────────────────────────────────────────────────────────── -->
+  <div id="dashboard" style="display:none">
+
+    <!-- Summary row -->
+    <div class="summary-row" id="summary-row"></div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <span class="controls-label">Filter:</span>
+      <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+      <button class="filter-btn" onclick="setFilter('Up', this)">↑ Bullish</button>
+      <button class="filter-btn" onclick="setFilter('Down', this)">↓ Bearish</button>
+      <button class="filter-btn" onclick="setFilter('Neutral', this)">— Neutral</button>
+      <span class="controls-label" style="margin-left:8px">Sort:</span>
+      <button class="filter-btn active-sort" onclick="setSort('stage', this)">Stage</button>
+      <button class="filter-btn" onclick="setSort('perf_1m', this)">1M Perf</button>
+      <button class="filter-btn" onclick="setSort('avg_rsi', this)">RSI</button>
+      <input class="search-box" id="ticker-search" placeholder="Search ticker…"
+             oninput="filterTickers(this.value)">
+    </div>
+
+    <!-- Sector grid -->
+    <div class="sector-grid" id="sector-grid"></div>
+  </div>
+
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let reportData    = null;
+let pollInterval  = null;
+let activeFilter  = 'all';
+let activeSort    = 'stage';
+let tickerSearch  = '';
+
+const API = '';   // empty = same origin; set to 'http://localhost:8000' for dev
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  checkStatus();
+  setInterval(checkStatus, 5000);
+});
+
+// ── API calls ─────────────────────────────────────────────────────────────────
+async function checkStatus() {
+  try {
+    const r    = await fetch(`${API}/api/status`);
+    const data = await r.json();
+
+    if (data.status === 'ready' && !reportData) {
+      await fetchReport();
+    } else if (data.status === 'running') {
+      showLoading(data.progress || 'Analysing market data…');
+    } else if (data.status === 'idle') {
+      showIdle();
+    } else if (data.status === 'error') {
+      showError(data.error);
+    }
+  } catch (e) {
+    // server not reachable — handled silently
+  }
+}
+
+async function fetchReport() {
+  try {
+    const r    = await fetch(`${API}/api/report`);
+    if (!r.ok) return;
+    reportData = await r.json();
+    renderDashboard();
+  } catch (e) {
+    showError('Failed to fetch report: ' + e.message);
+  }
+}
+
+async function triggerAnalysis() {
+  try {
+    const btn = document.getElementById('btn-analyze');
+    btn.disabled = true;
+    await fetch(`${API}/api/analyze`, { method: 'POST' });
+    reportData = null;
+    showLoading('Starting download…');
+    setTimeout(() => { btn.disabled = false; }, 3000);
+  } catch (e) {
+    showError('Cannot reach server. Is server.py running?');
+  }
+}
+
+// ── Screen switching ──────────────────────────────────────────────────────────
+function showIdle() {
+  document.getElementById('idle-screen').style.display    = 'flex';
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display      = 'none';
+}
+function showLoading(msg) {
+  document.getElementById('idle-screen').style.display    = 'none';
+  document.getElementById('loading-screen').style.display = 'flex';
+  document.getElementById('dashboard').style.display      = 'none';
+  document.getElementById('loading-text').textContent     = msg;
+}
+function showDashboard() {
+  document.getElementById('idle-screen').style.display    = 'none';
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display      = 'block';
+}
+function showError(msg) {
+  const el = document.getElementById('error-banner');
+  el.style.display = 'block';
+  el.textContent   = '⚠ ' + msg;
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  if (!reportData) return;
+  showDashboard();
+  renderHeader();
+  renderSummary();
+  renderSectors();
+}
+
+function renderHeader() {
+  const badge   = document.getElementById('market-badge');
+  const ts      = document.getElementById('timestamp');
+  const trend   = reportData.overall_trend;
+  badge.style.display = 'inline-flex';
+  badge.textContent   = trend;
+  badge.className     = 'market-badge ' + (
+    trend === 'Bullish' ? 'badge-bullish' :
+    trend === 'Bearish' ? 'badge-bearish' : 'badge-mixed'
+  );
+  ts.textContent = 'Updated: ' + reportData.timestamp;
+}
+
+function renderSummary() {
+  const sectors  = Object.values(reportData.sectors);
+  const bull     = reportData.bull_sectors.length;
+  const bear     = reportData.bear_sectors.length;
+  const s2pct    = avg(sectors, s => s.pct_stage2).toFixed(0);
+  const s4pct    = avg(sectors, s => s.pct_stage4).toFixed(0);
+  const avgRsi   = avg(sectors, s => s.avg_rsi).toFixed(1);
+
+  const row = document.getElementById('summary-row');
+  row.innerHTML = `
+    ${statCard('Bullish Sectors',  bull,        '↑ trending up',    'val-green')}
+    ${statCard('Bearish Sectors',  bear,        '↓ trending down',  'val-red')}
+    ${statCard('Stage 2 Coverage', s2pct + '%', 'advancing tickers','val-green')}
+    ${statCard('Stage 4 Coverage', s4pct + '%', 'declining tickers','val-red')}
+  `;
+}
+
+function statCard(label, value, sub, cls) {
+  return `<div class="stat-card">
+    <div class="stat-label">${label}</div>
+    <div class="stat-value ${cls}">${value}</div>
+    <div class="stat-sub">${sub}</div>
+  </div>`;
+}
+
+function renderSectors() {
+  const grid    = document.getElementById('sector-grid');
+  let   sectors = Object.values(reportData.sectors);
+
+  // Filter
+  if (activeFilter !== 'all')
+    sectors = sectors.filter(s => s.trend === activeFilter);
+
+  // Sort
+  sectors.sort((a, b) => {
+    if (activeSort === 'stage')    return a.stage   - b.stage;
+    if (activeSort === 'perf_1m')  return b.avg_perf_1m - a.avg_perf_1m;
+    if (activeSort === 'avg_rsi')  return b.avg_rsi - a.avg_rsi;
+    return 0;
+  });
+
+  grid.innerHTML = sectors.map((s, i) =>
+    sectorCard(s, i * 0.04)
+  ).join('');
+}
+
+function sectorCard(s, delay) {
+  const stageClass  = 'stage-' + s.stage;
+  const trendClass  = s.trend === 'Up' ? 'trend-up' : s.trend === 'Down' ? 'trend-down' : 'trend-neutral';
+  const trendArrow  = s.trend === 'Up' ? '↑' : s.trend === 'Down' ? '↓' : '—';
+  const p1w = fmt(s.avg_perf_1w), p1m = fmt(s.avg_perf_1m), p3m = fmt(s.avg_perf_3m);
+  const s2pct = s.pct_stage2, s4pct = s.pct_stage4;
+  const barWidth = Math.min(100, s2pct + s4pct);
+
+  // Ticker filter by search
+  let tickers = s.tickers;
+  if (tickerSearch)
+    tickers = tickers.filter(t => t.symbol.toLowerCase().includes(tickerSearch));
+
+  return `
+  <div class="sector-card" style="animation-delay:${delay}s">
+    <div class="card-header">
+      <div>
+        <div class="sector-name">${s.sector}</div>
+        <div class="stage-badge ${stageClass}">
+          <span class="stage-dot"></span>
+          Stage ${s.stage} · ${s.stage_label}
+        </div>
+      </div>
+      <div class="card-right">
+        <div class="trend-indicator ${trendClass}">${trendArrow} ${s.trend}</div>
+        <div class="rsi-val">RSI <span>${s.avg_rsi}</span></div>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <div class="perf-row">
+        ${perfItem('1 Week',  p1w)}
+        ${perfItem('1 Month', p1m)}
+        ${perfItem('3 Month', p3m)}
+      </div>
+
+      <div class="dist-bar-wrap">
+        <span class="dist-label">S2 ${s2pct.toFixed(0)}%</span>
+        <div class="dist-bar-track">
+          <div class="dist-bar-fill" style="width:${barWidth}%"></div>
+        </div>
+        <span class="dist-label">S4 ${s4pct.toFixed(0)}%</span>
+      </div>
+    </div>
+
+    <div class="card-footer">
+      <span class="ticker-count">${s.ticker_count} tickers</span>
+      <button class="expand-btn" onclick="toggleExpand(this)">
+        Show tickers ▾
+      </button>
+    </div>
+
+    <div class="ticker-table-wrap">
+      <table class="tickers">
+        <thead>
+          <tr>
+            <th>Ticker</th>
+            <th>Stage</th>
+            <th>Price</th>
+            <th>vs MA150</th>
+            <th>RSI</th>
+            <th>1M %</th>
+            <th>3M %</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tickers.map(tickerRow).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function perfItem(label, val) {
+  const isPos = val.startsWith('+');
+  const isNeg = val.startsWith('−') || val.startsWith('-');
+  const color = isPos ? 'var(--up)' : isNeg ? 'var(--down)' : 'var(--text)';
+  return `<div class="perf-item">
+    <div class="perf-label">${label}</div>
+    <div class="perf-value" style="color:${color}">${val}</div>
+  </div>`;
+}
+
+function tickerRow(t) {
+  const stageColor = ['','var(--s1)','var(--s2)','var(--s3)','var(--s4)'][t.stage] || 'var(--text-dim)';
+  const vsma = fmt(t.price_vs_ma150);
+  const rsiColor = t.rsi > 60 ? 'var(--up)' : t.rsi < 40 ? 'var(--down)' : 'var(--text-mid)';
+  const rsiW = Math.round(t.rsi) + '%';
+  return `<tr>
+    <td><span class="sym">${t.symbol.replace('.TO','').replace('.V','').replace('.NE','')}</span></td>
+    <td>
+      <span class="stage-pip" style="background:${stageColor}"></span>
+      <span style="color:${stageColor};font-size:0.6rem">${t.stage}</span>
+    </td>
+    <td>${t.price.toFixed(2)}</td>
+    <td style="color:${t.price_vs_ma150 >= 0 ? 'var(--up)' : 'var(--down)'}">${vsma}</td>
+    <td>
+      <div class="rsi-bar-wrap">
+        <span style="color:${rsiColor}">${t.rsi.toFixed(0)}</span>
+        <div class="rsi-bar">
+          <div class="rsi-bar-fill" style="width:${rsiW};background:${rsiColor}"></div>
+        </div>
+      </div>
+    </td>
+    <td style="color:${t.perf_1m >= 0 ? 'var(--up)' : 'var(--down)'}">${fmt(t.perf_1m)}</td>
+    <td style="color:${t.perf_3m >= 0 ? 'var(--up)' : 'var(--down)'}">${fmt(t.perf_3m)}</td>
+  </tr>`;
+}
+
+// ── UI controls ───────────────────────────────────────────────────────────────
+function toggleExpand(btn) {
+  const wrap = btn.closest('.sector-card').querySelector('.ticker-table-wrap');
+  const open = wrap.classList.toggle('open');
+  btn.textContent = open ? 'Hide tickers ▴' : 'Show tickers ▾';
+}
+
+function setFilter(val, el) {
+  activeFilter = val;
+  document.querySelectorAll('.controls .filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderSectors();
+}
+
+function setSort(val, el) {
+  activeSort = val;
+  document.querySelectorAll('.active-sort').forEach(b => b.classList.remove('active-sort'));
+  el.classList.add('active-sort');
+  renderSectors();
+}
+
+function filterTickers(val) {
+  tickerSearch = val.toLowerCase();
+  renderSectors();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmt(v) {
+  if (v == null || isNaN(v)) return '—';
+  const sign = v > 0 ? '+' : '';
+  return `${sign}${v.toFixed(2)}%`;
+}
+
+function avg(arr, fn) {
+  if (!arr.length) return 0;
+  return arr.reduce((s, x) => s + fn(x), 0) / arr.length;
+}
+</script>
+</body>
+</html>
